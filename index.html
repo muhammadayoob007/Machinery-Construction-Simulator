@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced Real Land Excavator & Hauling Simulator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        body {
+            background: linear-gradient(135deg, #0b0e14 0%, #151b28 100%);
+            color: #d1d4dc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+        header {
+            width: 100%;
+            background-color: #121620;
+            border-bottom: 1px solid #1f2633;
+            padding: 12px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            color: #00ffcc;
+            font-weight: bold;
+            font-size: 16px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .live-dot {
+            width: 9px;
+            height: 9px;
+            background-color: #00ffcc;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00ffcc;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+        }
+        .stat-item span {
+            color: #00ffcc;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .game-container {
+            width: 100%;
+            max-width: 1050px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 12px;
+        }
+        .viewport {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(to bottom, #111827 0%, #1f2937 70%, #374151 100%);
+            border: 2px solid #252f44;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .panel-box {
+            background-color: #121620;
+            border: 1px solid #1f2633;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .panel-box h3 {
+            font-size: 13px;
+            color: #00ffcc;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #1f2633;
+            padding-bottom: 4px;
+        }
+        .instructions {
+            font-size: 11px;
+            color: #848e9c;
+            line-height: 1.5;
+        }
+        .instructions strong {
+            color: #fff;
+        }
+        /* Mobile Touch Controls */
+        .touch-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 42px);
+            grid-template-rows: repeat(2, 42px);
+            gap: 4px;
+        }
+        .pad-btn {
+            background: #1a2130;
+            border: 1px solid #2a3447;
+            color: #fff;
+            font-size: 16px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            outline: none;
+        }
+        .pad-btn:active {
+            background: #00ffcc;
+            color: #0b0e14;
+        }
+        .action-pad {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+        .action-btn {
+            background: #00ffcc;
+            color: #0b0e14;
+            border: none;
+            padding: 10px 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            box-shadow: 0 0 10px rgba(0,255,204,0.3);
+            text-align: center;
+        }
+        .action-btn.dump {
+            background: #ff3366;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(255,51,102,0.3);
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+        @media(max-width: 768px) {
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+            .viewport {
+                height: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <span class="live-dot"></span>
+            <span>REAL LAND EXCAVATOR & HAULING SIMULATOR</span>
+        </div>
+        <div class="stats-bar">
+            <div class="stat-item">Bucket: <span id="load-val">0%</span></div>
+            <div class="stat-item">Truck Load: <span id="truck-load-val">0%</span></div>
+            <div class="stat-item">Score: <span id="score">0</span></div>
+        </div>
+    </header>
+
+    <div class="game-container">
+        <!-- Interactive Canvas Viewport -->
+        <div class="viewport">
+            <canvas id="simCanvas"></canvas>
+        </div>
+
+        <!-- Controls & Instructions Panel -->
+        <div class="control-panel">
+            <div class="panel-box">
+                <h3>Operation Guide</h3>
+                <div class="instructions">
+                    <strong>PC Controls:</strong> [A / D] Drive Excavator • [W / S] Move Boom Arm • [Space] Dig Soil • [Enter] Dump into Truck.<br>
+                    <strong>Workflow:</strong> Dig real land into your bucket ➔ Dump soil into the dumper truck until it reaches 100% ➔ The full truck automatically drives away and a new empty truck takes its place!
+                </div>
+            </div>
+
+            <div class="panel-box">
+                <h3>Interactive Machine Controls</h3>
+                <div class="touch-controls">
+                    <div class="d-pad">
+                        <div></div>
+                        <button class="pad-btn" ontouchstart="adjustArm(-0.15)" onmousedown="adjustArm(-0.15)">⬆</button>
+                        <div></div>
+                        <button class="pad-btn" ontouchstart="moveBase(-15)" onmousedown="moveBase(-15)">⬅</button>
+                        <button class="pad-btn" ontouchstart="adjustArm(0.15)" onmousedown="adjustArm(0.15)">⬇</button>
+                        <button class="pad-btn" ontouchstart="moveBase(15)" onmousedown="moveBase(15)">➡</button>
+                    </div>
+                    <div class="action-pad">
+                        <button class="action-btn" onclick="performDig()">DIG SOIL</button>
+                        <button class="action-btn dump" onclick="performDump()">DUMP LOAD</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            initTerrain();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Simulation State
+        let score = 0;
+        let bucketLoad = 0; // 0 to 100%
+        let terrainHeights = [];
+        
+        let excavator = {
+            x: 200,
+            armAngle: -0.3
+        };
+
+        // Dumper Truck with automated movement states ('waiting', 'leaving', 'arriving')
+        let truck = {
+            x: 650,
+            targetX: 650,
+            load: 0, // 0 to 100%
+            state: 'waiting'
+        };
+
+        let keys = {};
+
+        function initTerrain() {
+            terrainHeights = [];
+            let baseHeight = canvas.height * 0.45;
+            for (let i = 0; i <= canvas.width; i += 2) {
+                let h = baseHeight + Math.sin(i * 0.01) * 35 + Math.cos(i * 0.005) * 60;
+                terrainHeights.push(h);
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ') { e.preventDefault(); performDig(); }
+            if (e.key === 'Enter') { performDump(); }
+        });
+        window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        function moveBase(amt) {
+            excavator.x = Math.max(60, Math.min(canvas.width - 150, excavator.x + amt));
+        }
+
+        function adjustArm(val) {
+            excavator.armAngle = Math.max(-1.3, Math.min(0.6, excavator.armAngle + val));
+        }
+
+        // Digging Mechanic
+        function performDig() {
+            let bucketWorldX = excavator.x + 45 + Math.cos(excavator.armAngle) * 90;
+            let index = Math.floor(bucketWorldX / 2);
+
+            if (index >= 0 && index < terrainHeights.length) {
+                for (let i = index - 12; i <= index + 12; i++) {
+                    if (i >= 0 && i < terrainHeights.length) {
+                        let distanceFactor = 1 - Math.abs(i - index) / 12;
+                        terrainHeights[i] += 15 * distanceFactor;
+                    }
+                }
+
+                if (bucketLoad < 100) {
+                    bucketLoad = Math.min(100, bucketLoad + 25);
+                    document.getElementById('load-val').innerText = bucketLoad + '%';
+                }
+            }
+        }
+
+        // Dumping Mechanic into Truck
+        function performDump() {
+            let distanceToTruck = Math.abs(excavator.x - truck.x);
+            if (distanceToTruck < 180 && bucketLoad > 0 && truck.state === 'waiting') {
+                truck.load = Math.min(100, truck.load + bucketLoad);
+                score += bucketLoad * 5;
+                bucketLoad = 0;
+                
+                document.getElementById('load-val').innerText = '0%';
+                document.getElementById('truck-load-val').innerText = truck.load + '%';
+                document.getElementById('score').innerText = score;
+
+                // If truck is completely full (100%), trigger departure
+                if (truck.load >= 100) {
+                    truck.state = 'leaving';
+                }
+            }
+        }
+
+        function update() {
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) excavator.x -= 2.5;
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) excavator.x += 2.5;
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) excavator.armAngle = Math.max(-1.3, excavator.armAngle - 0.03);
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) excavator.armAngle = Math.min(0.6, excavator.armAngle + 0.03);
+
+            excavator.x = Math.max(50, Math.min(canvas.width - 120, excavator.x));
+
+            // Automated Truck Movement Logic
+            if (truck.state === 'leaving') {
+                truck.x += 3.5; // Drive away to the right
+                if (truck.x > canvas.width + 120) {
+                    // Reset off-screen to the left, ready to arrive as a new empty truck
+                    truck.x = -120;
+                    truck.load = 0;
+                    document.getElementById('truck-load-val').innerText = '0%';
+                    truck.state = 'arriving';
+                }
+            } else if (truck.state === 'arriving') {
+                truck.x += 3.5; // Drive in from left to position
+                if (truck.x >= truck.targetX) {
+                    truck.x = truck.targetX;
+                    truck.state = 'waiting';
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Sky Gradient Backdrop
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#0f172a');
+            skyGrad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Destructible Real Land Terrain
+            ctx.fillStyle = '#854d0e';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let i = 0; i < terrainHeights.length; i++) {
+                ctx.lineTo(i * 2, terrainHeights[i]);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#451a03';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let i = 0; i < terrainHeights.length; i++) {
+                ctx.lineTo(i * 2, terrainHeights[i] + 30);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // 3. Dumper Truck Rendering
+            ctx.fillStyle = truck.state === 'leaving' ? '#ef4444' : '#f59e0b'; // color indicator when full/leaving
+            ctx.fillRect(truck.x, canvas.height * 0.45 - 35, 80, 35);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(truck.x + 60, canvas.height * 0.45 - 25, 30, 25);
+            
+            // Wheels
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(truck.x + 20, canvas.height * 0.45, 10, 0, Math.PI * 2);
+            ctx.arc(truck.x + 70, canvas.height * 0.45, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw dirt piled inside truck bed based on current load percentage
+            if (truck.load > 0) {
+                ctx.fillStyle = '#854d0e';
+                let loadHeight = (truck.load / 100) * 22;
+                ctx.fillRect(truck.x + 5, (canvas.height * 0.45 - 35) + (22 - loadHeight), 52, loadHeight);
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '11px sans-serif';
+            let statusText = truck.state === 'waiting' ? `TRUCK (${truck.load}%)` : (truck.state === 'leaving' ? 'FULL - DEPARTING ➔' : 'NEW TRUCK ARRIVING...');
+            ctx.fillText(statusText, truck.x - 10, canvas.height * 0.45 - 45);
+
+            // 4. Excavator Machine
+            let sampleIdx = Math.floor(excavator.x / 2);
+            let groundY = terrainHeights[sampleIdx] || (canvas.height * 0.5);
+
+            ctx.save();
+            ctx.translate(excavator.x, groundY);
+
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(-35, -16, 70, 16);
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(-30, -12, 60, 8);
+
+            ctx.fillStyle = '#eab308';
+            ctx.fillRect(-22, -45, 45, 30);
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(2, -38, 15, 16);
+
+            ctx.strokeStyle = '#ca8a04';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(15, -30);
+            
+            let armTipX = 15 + Math.cos(excavator.armAngle) * 95;
+            let armTipY = -30 + Math.sin(excavator.armAngle) * 95;
+            ctx.lineTo(armTipX, armTipY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(armTipX - 8, armTipY, 16, 12);
+
+            if (bucketLoad > 0) {
+                ctx.fillStyle = '#854d0e';
+                ctx.fillRect(armTipX - 6, armTipY + 2, 12, 8);
+            }
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        resizeCanvas();
+        loop();
+    </script>
+</body>
+</html>
